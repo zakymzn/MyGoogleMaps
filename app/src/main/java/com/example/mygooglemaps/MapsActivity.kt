@@ -1,5 +1,7 @@
 package com.example.mygooglemaps
 
+import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -8,9 +10,12 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -25,6 +30,8 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.graphics.toColorInt
+import androidx.core.view.WindowCompat
+import com.google.android.gms.maps.model.MapStyleOptions
 
 class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
@@ -33,6 +40,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+//        WindowCompat.setDecorFitsSystemWindows(window, false)
+        supportActionBar?.show()
 
         binding = ActivityMapsBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -91,6 +101,9 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
             poiMarker?.showInfoWindow()
         }
         mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(dicodingSpace, 15f))
+
+        getMyLocation()
+        setMapStyle()
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -134,5 +147,42 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
         DrawableCompat.setTint(vectorDrawable, color)
         vectorDrawable.draw(canvas)
         return BitmapDescriptorFactory.fromBitmap(bitmap)
+    }
+
+    private val requestPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted: Boolean ->
+            if (isGranted) {
+                getMyLocation()
+            }
+        }
+
+    private fun getMyLocation() {
+        if (ContextCompat.checkSelfPermission(
+            this.applicationContext,
+            android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            mMap.isMyLocationEnabled = true
+        } else {
+            requestPermissionLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    private fun setMapStyle() {
+        try {
+            val success =
+                mMap.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.map_style))
+            if (!success) {
+                Log.e(TAG, "Style parsing failed.")
+            }
+        } catch (exception: Resources.NotFoundException) {
+            Log.e(TAG, "Can't find style. Error: ", exception)
+        }
+    }
+
+    companion object {
+        private const val TAG = "MapsActivity"
     }
 }
